@@ -12,7 +12,6 @@ from gnuradio import qtgui
 from gnuradio.eng_option import eng_option
 from gnuradio.filter import firdes
 from math import pi
-from optparse import OptionParser
 import grgsm
 import osmosdr
 import pmt
@@ -20,10 +19,12 @@ import sip
 import sys
 import time
 import logging
+from threading import Thread
+import argparse
 
 class airprobe_rtlsdr(gr.top_block):
 
-    def __init__(self):
+    def __init__(self, fc=939.4e6, gain=30, ppm=0, samp_rate=2000000.052982, shiftoff=400e3):
         gr.top_block.__init__(self, "Airprobe Rtlsdr")
 
         # Logging system (to specific file)
@@ -32,11 +33,11 @@ class airprobe_rtlsdr(gr.top_block):
         ##################################################
         # Parameters
         ##################################################
-        self.fc = 937755550 #939.4e6
-        self.gain = 30
-        self.ppm = 0
-        self.samp_rate = 2000000.052982
-        self.shiftoff = 400e3
+        self.fc = fc
+        self.gain = gain
+        self.ppm = ppm
+        self.samp_rate = samp_rate
+        self.shiftoff = shiftoff
 
         ##################################################
         # Blocks
@@ -90,8 +91,9 @@ class airprobe_rtlsdr(gr.top_block):
         self.msg_connect((self.gsm_receiver_0, 'measurements'), (self.gsm_clock_offset_control_0, 'measurements'))    
         self.msg_connect((self.gsm_receiver_0, 'C0'), (self.gsm_sdcch8_demapper_0, 'bursts'))    
         self.msg_connect((self.gsm_sdcch8_demapper_0, 'bursts'), (self.gsm_decryption_0, 'bursts'))
+
         self.connect((self.blocks_rotator_cc_0, 0), (self.gsm_input_0, 0))
-        self.connect((self.gsm_input_0, 0), (self.gsm_receiver_0, 0))    
+        self.connect((self.gsm_input_0, 0), (self.gsm_receiver_0, 0))
         self.connect((self.rtlsdr_source_0, 0), (self.blocks_rotator_cc_0, 0))
 
     # Get the sample rate value
@@ -148,8 +150,38 @@ class airprobe_rtlsdr(gr.top_block):
         self.fc = fc
         self.rtlsdr_source_0.set_center_freq(self.fc-self.shiftoff, 0)
 
+# Setup all parameters allowed to the command script
+def setup_parameters():
+    parser = argparse.ArgumentParser(description='Configure sniffing parameters')
+    group = parser.add_argument_group("grgsm arguments")
+    group.add_argument("-g", "--gain", help="Set the gain parameter", default=30, type=float)
+    group.add_argument("-p", "--ppm", help="Set the ppm parameter", default=0 , type=int)
+    group.add_argument("-s", "--samp_rate", help="Set the sample rate parameter", default=2000000.052982, type=float)
+    group.add_argument("-o", "--shiftoff", help="Set the shiftoff (offset) parameter", default=400000, type=float)
+    group.add_argument("-f", "--frequencies", help="Set all the frequencies to check", default=[937755550], type=float, nargs='+')
+    return parser
+
 if __name__ == '__main__':
-    tb = airprobe_rtlsdr()
+    # Loading arguments parser
+    parser = setup_parameters()
+    args = parser.parse_args()
+
+    #937755550
+
+    tb = airprobe_rtlsdr(fc=args.frequencies[0], gain=args.gain, ppm=args.ppm, samp_rate=args.samp_rate, shiftoff=args.shiftoff)
     tb.start()
-    tb.wait()
-    #tb = None  # to clean up Qt widgets
+
+    # Launch gr-gsm in another thread to avoid putting the main process in "wait state"
+    grgsm = Thread(target=tb.wait)
+    grgsm.daemon = True # Stop the thread if the main process is stopped
+    grgsm.start()
+
+    # For all frequencies in argument, sniffing for 2 seconds then continuing to the next
+    while True:
+        for i,fc in enumerate(args.frequencies):
+            time.sleep(2)
+            print("Current frequency : " + str(fc))
+            tb.set_fc(fc)
+
+    grgsm.stop()
+    tb.stop()s
