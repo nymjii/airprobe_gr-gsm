@@ -6,10 +6,8 @@
 ##################################################
 
 from gnuradio import blocks
-from gnuradio import eng_notation
 from gnuradio import gr
 from gnuradio import qtgui
-from gnuradio.eng_option import eng_option
 from gnuradio.filter import firdes
 from math import pi
 import grgsm
