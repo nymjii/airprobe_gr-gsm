@@ -47,7 +47,7 @@ class airprobe_rtlsdr(gr.top_block, Qt.QWidget):
              pass
 
         # Logging system (to specific file)
-        logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', filename='log', filemod='w', level=logging.INFO)
+        logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', filename='graphical_sniffing_log', filemod='w', level=logging.INFO)
 
         # Windows setting
         self.top_scroll_layout = Qt.QVBoxLayout()
@@ -76,6 +76,7 @@ class airprobe_rtlsdr(gr.top_block, Qt.QWidget):
         ##################################################
         # Blocks
         ##################################################
+        # Order : min value, max value, step, default value and ?)
         self._ppm_slider_range = Range(-150, 150, 1, self.ppm, 100)
         self._ppm_slider_win = RangeWidget(self._ppm_slider_range, self.set_ppm, "PPM Offset", "counter", float)
         self.top_layout.addWidget(self._ppm_slider_win)
@@ -212,7 +213,6 @@ class airprobe_rtlsdr(gr.top_block, Qt.QWidget):
         self.fc = fc
         self.qtgui_freq_sink_x_0.set_frequency_range(self.fc, self.samp_rate)
         self.rtlsdr_source_0.set_center_freq(self.fc-self.shiftoff, 0)
-
 
 
 if __name__ == '__main__':    

@@ -7,13 +7,10 @@
 
 from gnuradio import blocks
 from gnuradio import gr
-from gnuradio import qtgui
-from gnuradio.filter import firdes
 from math import pi
 import grgsm
 import osmosdr
 import pmt
-import sip
 import sys
 import time
 import logging
@@ -65,8 +62,9 @@ class airprobe_rtlsdr(gr.top_block):
         self.gsm_control_channels_decoder_0_0 = grgsm.control_channels_decoder()
         # Create a duplicate control channel to display in the terminal
         self.gsm_control_channels_decoder_0 = grgsm.control_channels_decoder()
+        # TODO comment
         self.gsm_clock_offset_control_0 = grgsm.clock_offset_control(self.fc-self.shiftoff)
-        # Create the bcch and ccch channel "parser?"
+        # Create the BCCH and CCCH channel "parser?"
         self.gsm_bcch_ccch_demapper_0 = grgsm.universal_ctrl_chans_demapper(0, ([2,6,12,16,22,26,32,36,42,46]), ([1,2,2,2,2,2,2,2,2,2]))
         # Creating a client socket connected to the loopback interface
         self.blocks_socket_pdu_0 = blocks.socket_pdu("UDP_CLIENT", "127.0.0.1", "4729", 10000)
@@ -80,7 +78,7 @@ class airprobe_rtlsdr(gr.top_block):
         self.msg_connect((self.gsm_receiver_0, 'measurements'), (self.gsm_clock_offset_control_0, 'measurements'))
         # Sending received traffic from the device to the SDCCH channel mapper
         self.msg_connect((self.gsm_receiver_0, 'C0'), (self.gsm_sdcch8_demapper_0, 'bursts'))
-        # 
+        # TODO comment
         self.msg_connect((self.gsm_clock_offset_control_0, 'ppm'), (self.gsm_input_0, 'ppm_in'))
 
         # Sending SDCCH channel packets decoded to the GSM decrypter
@@ -150,7 +148,7 @@ class airprobe_rtlsdr(gr.top_block):
         self.fc = fc
         self.rtlsdr_source_0.set_center_freq(self.fc-self.shiftoff, 0)
 
-# Setup all parameters allowed to the command script
+# Setup all arguments allowed to the command script and checking types
 def setup_parameters():
     parser = argparse.ArgumentParser(description='Configure sniffing parameters')
     group = parser.add_argument_group("grgsm arguments")
@@ -160,6 +158,17 @@ def setup_parameters():
     group.add_argument("-o", "--shiftoff", help="Set the shiftoff value", default=400000, type=float)
     group.add_argument("-f", "--frequencies", help="Set the list of frequencies to scan : 937000000 932950000 ...", default=[937700000], type=float, nargs='+')
     return parser
+
+# Checking arguments values
+def checking_arguments(frequencies, gain, ppm):
+    if (ppm > 150 or ppm < -150):
+        raise argparse.ArgumentTypeError("PPM value must be between -150 and 150 included")
+    if (gain > 50 or gain < 0):
+        raise argparse.ArgumentTypeError("Amplification (gain value) must be between 0 and 50 included")
+    for fc in frequencies:
+        if (fc <= 0):
+            raise argparse.ArgumentTypeError("No frequency has negative or null value")
+            logging.alert("")
 
 # Main function
 if __name__ == '__main__':
@@ -171,6 +180,9 @@ if __name__ == '__main__':
     parser = setup_parameters()
     # Getting all arguments in variable "args"
     args = parser.parse_args()
+
+    # checking arguments values
+    checking_arguments(args.frequencies, args.gain, args.ppm)
 
     # Creating the top_block implementation to set gr-gsm parameters
     tb = airprobe_rtlsdr(fc=args.frequencies[0], gain=args.gain, ppm=args.ppm, samp_rate=args.samp_rate, shiftoff=args.shiftoff)
