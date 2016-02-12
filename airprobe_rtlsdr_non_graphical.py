@@ -24,24 +24,16 @@ import argparse
 
 class airprobe_rtlsdr(gr.top_block):
 
-    def __init__(self, fc=939.4e6, gain=30, ppm=0, samp_rate=2000000.052982, shiftoff=400e3):
+    def __init__(self, fc, gain, ppm, samp_rate, shiftoff):
+        # Initiating the herited top_block class of the gnuradio project
         gr.top_block.__init__(self, "Airprobe Rtlsdr")
 
-        # Logging system (to specific file)
-        logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', filename='log', filemod='w', level=logging.INFO)
-
-        ##################################################
-        # Parameters
-        ##################################################
+        # Settting parameters of the class
         self.fc = fc
         self.gain = gain
         self.ppm = ppm
         self.samp_rate = samp_rate
         self.shiftoff = shiftoff
-
-        ##################################################
-        # Blocks
-        ##################################################
 
         # Initialisation of the rtlsdr module to communicate with the device
         self.rtlsdr_source_0 = osmosdr.source( args="numchan=" + str(1) + " " + "" )
@@ -59,7 +51,9 @@ class airprobe_rtlsdr(gr.top_block):
 
         self.gsm_sdcch8_demapper_0 = grgsm.universal_ctrl_chans_demapper(1, ([0,4,8,12,16,20,24,28,32,36,40,44]), ([8,8,8,8,8,8,8,8,136,136,136,136]))
         self.gsm_receiver_0 = grgsm.receiver(4, ([0]), ([]))
+        # Setting block to display received packets in the terminal
         self.gsm_message_printer_1 = grgsm.message_printer(pmt.intern(""), False)
+        # Setting gr-gsm parameters to listen the network
         self.gsm_input_0 = grgsm.gsm_input(
             ppm=self.ppm,
             osr=4,
@@ -67,34 +61,42 @@ class airprobe_rtlsdr(gr.top_block):
             samp_rate_in=self.samp_rate,
         )
 
-        # launch decryption of GSM packets
+        # Getting the GSM packet decoder
         self.gsm_decryption_0 = grgsm.decryption(([]), 1)
+        # Create the control channel decoder to receive GSM packets
         self.gsm_control_channels_decoder_0_0 = grgsm.control_channels_decoder()
+        # Create a duplicate control channel to display in the terminal
         self.gsm_control_channels_decoder_0 = grgsm.control_channels_decoder()
         self.gsm_clock_offset_control_0 = grgsm.clock_offset_control(self.fc-self.shiftoff)
+        # Create the bcch and ccch channel "parser?"
         self.gsm_bcch_ccch_demapper_0 = grgsm.universal_ctrl_chans_demapper(0, ([2,6,12,16,22,26,32,36,42,46]), ([1,2,2,2,2,2,2,2,2,2]))
-        self.blocks_socket_pdu_0_0 = blocks.socket_pdu("UDP_SERVER", "127.0.0.1", "4729", 10000)
+        # Creating a client socket connected to the loopback interface
         self.blocks_socket_pdu_0 = blocks.socket_pdu("UDP_CLIENT", "127.0.0.1", "4729", 10000)
+        # Creating a server socket to use GSM packets without Wireshark or other traffic analyser
+        #self.blocks_socket_pdu_0_0 = blocks.socket_pdu("UDP_SERVER", "127.0.0.1", "4729", 10000)
         self.blocks_rotator_cc_0 = blocks.rotator_cc(-2*pi*self.shiftoff/self.samp_rate)
 
-        ##################################################
-        # Connections
-        ##################################################
-        self.msg_connect((self.gsm_bcch_ccch_demapper_0, 'bursts'), (self.gsm_control_channels_decoder_0, 'bursts'))    
-        self.msg_connect((self.gsm_clock_offset_control_0, 'ppm'), (self.gsm_input_0, 'ppm_in'))    
-        self.msg_connect((self.gsm_control_channels_decoder_0, 'msgs'), (self.blocks_socket_pdu_0, 'pdus'))    
-        self.msg_connect((self.gsm_control_channels_decoder_0, 'msgs'), (self.gsm_message_printer_1, 'msgs'))    
-        self.msg_connect((self.gsm_control_channels_decoder_0_0, 'msgs'), (self.blocks_socket_pdu_0, 'pdus'))    
-        self.msg_connect((self.gsm_control_channels_decoder_0_0, 'msgs'), (self.gsm_message_printer_1, 'msgs'))    
-        self.msg_connect((self.gsm_decryption_0, 'bursts'), (self.gsm_control_channels_decoder_0_0, 'bursts'))    
-        self.msg_connect((self.gsm_receiver_0, 'C0'), (self.gsm_bcch_ccch_demapper_0, 'bursts'))    
-        self.msg_connect((self.gsm_receiver_0, 'measurements'), (self.gsm_clock_offset_control_0, 'measurements'))    
-        self.msg_connect((self.gsm_receiver_0, 'C0'), (self.gsm_sdcch8_demapper_0, 'bursts'))    
-        self.msg_connect((self.gsm_sdcch8_demapper_0, 'bursts'), (self.gsm_decryption_0, 'bursts'))
+        # Sending received traffic from the device to the BCCH and CCCH channel mapper
+        self.msg_connect((self.gsm_receiver_0, 'C0'), (self.gsm_bcch_ccch_demapper_0, 'bursts'))
+        # Sending received traffic from the device to the Clock Offset controler
+        self.msg_connect((self.gsm_receiver_0, 'measurements'), (self.gsm_clock_offset_control_0, 'measurements'))
+        # Sending received traffic from the device to the SDCCH channel mapper
+        self.msg_connect((self.gsm_receiver_0, 'C0'), (self.gsm_sdcch8_demapper_0, 'bursts'))
+        # 
+        self.msg_connect((self.gsm_clock_offset_control_0, 'ppm'), (self.gsm_input_0, 'ppm_in'))
 
-        self.connect((self.blocks_rotator_cc_0, 0), (self.gsm_input_0, 0))
-        self.connect((self.gsm_input_0, 0), (self.gsm_receiver_0, 0))
+        # Sending SDCCH channel packets decoded to the GSM decrypter
+        self.msg_connect((self.gsm_sdcch8_demapper_0, 'bursts'), (self.gsm_decryption_0, 'bursts'))
+        # Sending decrypted GSM packets to the channel decoder
+        self.msg_connect((self.gsm_decryption_0, 'bursts'), (self.gsm_control_channels_decoder_0, 'bursts'))
+        # Connecting the BCCH and CCCH channel mapper to the channel decoder
+        self.msg_connect((self.gsm_bcch_ccch_demapper_0, 'bursts'), (self.gsm_control_channels_decoder_0, 'bursts'))
+        # Sending readable GSM packets to the client socket
+        self.msg_connect((self.gsm_control_channels_decoder_0, 'msgs'), (self.blocks_socket_pdu_0, 'pdus'))
+
         self.connect((self.rtlsdr_source_0, 0), (self.blocks_rotator_cc_0, 0))
+        self.connect((self.blocks_rotator_cc_0, 0), (self.gsm_input_0, 0))
+        self.connect((self.gsm_input_0, 0), (self.gsm_receiver_0, 0))        
 
     # Get the sample rate value
     def get_samp_rate(self):
@@ -154,20 +156,25 @@ class airprobe_rtlsdr(gr.top_block):
 def setup_parameters():
     parser = argparse.ArgumentParser(description='Configure sniffing parameters')
     group = parser.add_argument_group("grgsm arguments")
-    group.add_argument("-g", "--gain", help="Set the gain parameter", default=30, type=float)
-    group.add_argument("-p", "--ppm", help="Set the ppm parameter", default=0 , type=int)
-    group.add_argument("-s", "--samp_rate", help="Set the sample rate parameter", default=2000000.052982, type=float)
-    group.add_argument("-o", "--shiftoff", help="Set the shiftoff (offset) parameter", default=400000, type=float)
-    group.add_argument("-f", "--frequencies", help="Set all the frequencies to check", default=[937755550], type=float, nargs='+')
+    group.add_argument("-g", "--gain", help="Set the amplification value", default=30, type=float)
+    group.add_argument("-p", "--ppm", help="Set PPM Stream Modulation value", default=0 , type=int)
+    group.add_argument("-s", "--samp_rate", help="Set the rate value of the antenna", default=2000000.052982, type=float)
+    group.add_argument("-o", "--shiftoff", help="Set the shiftoff value", default=400000, type=float)
+    group.add_argument("-f", "--frequencies", help="Set the list of frequencies to scan : 937000000 932950000 ...", default=[937700000], type=float, nargs='+')
     return parser
 
+# Main function
 if __name__ == '__main__':
+
+    # Logging system
+    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', filename='sniffing.log', filemod='w', level=logging.INFO)
+
     # Loading arguments parser
     parser = setup_parameters()
+    # Getting all arguments in variable "args"
     args = parser.parse_args()
 
-    #937755550
-
+    # Creating the top_block implementation to set gr-gsm parameters
     tb = airprobe_rtlsdr(fc=args.frequencies[0], gain=args.gain, ppm=args.ppm, samp_rate=args.samp_rate, shiftoff=args.shiftoff)
     tb.start()
 
@@ -176,12 +183,14 @@ if __name__ == '__main__':
     grgsm.daemon = True # Stop the thread if the main process is stopped
     grgsm.start()
 
-    # For all frequencies in argument, sniffing for 2 seconds then continuing to the next
+    # For all frequencies in argument sniffing for 2 seconds
     while True:
-        for i,fc in enumerate(args.frequencies):
-            time.sleep(2)
-            print("Current frequency : " + str(fc))
+        for fc in args.frequencies:
+            print("Scanning frequency : " + str(fc))
             tb.set_fc(fc)
+            time.sleep(2)
 
+    # Stop all process before main stop
     grgsm.stop()
-    tb.stop()s
+    tb.stop()
+
