@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 ##################################################
 # GNU Radio Python Flow Graph
 # Title: Airprobe Rtlsdr
@@ -182,11 +182,11 @@ class sniffingHandler:
         self.shiftoff = shiftoff
         self.tb = airprobe_rtlsdr(fc=self.frequencies[0], gain=self.gain, ppm=self.ppm, samp_rate=self.samp_rate, shiftoff=self.shiftoff)
 
-    def start_sniffing():
+    def start_sniffing(self):
         self.tb.start()
 
         # Launch gr-gsm in another thread to avoid putting the main process in "wait state"
-        self.grgsm = Thread(target=tb.wait)
+        self.grgsm = Thread(target=self.tb.wait)
         self.grgsm.daemon = True # Stop the thread if the main process is stopped
         self.grgsm.start()
 
@@ -198,7 +198,7 @@ class sniffingHandler:
                 time.sleep(2)
 
     # Stop sniffing process
-    def stop_sniffing():
+    def stop_sniffing(self):
         self.grgsm.stop()
         self.tb.stop()
 
@@ -221,7 +221,7 @@ if __name__ == '__main__':
     handler = sniffingHandler(args.frequencies, args.gain, args.ppm, args.samp_rate, args.shiftoff)
 
     # Lanching sniffing until user stop it
-    handler.start()
+    handler.start_sniffing()
     raw.input('Press Enter to exit: ')
-    handler.stop()
+    handler.stop_sniffing()
 
