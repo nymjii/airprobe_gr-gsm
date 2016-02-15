@@ -170,37 +170,58 @@ def checking_arguments(frequencies, gain, ppm):
             raise argparse.ArgumentTypeError("No frequency has negative or null value")
             logging.alert("")
 
+class sniffingHandler:
+
+    def __init__(self, frequencies, gain, ppm, samp_rate, shiftoff):
+        # Checking parameters values only (not type)
+        checking_arguments(frequencies, gain, ppm)
+        self.frequencies = frequencies
+        self.gain = gain
+        self.ppm = ppm
+        self.samp_rate = samp_rate
+        self.shiftoff = shiftoff
+        self.tb = airprobe_rtlsdr(fc=self.frequencies[0], gain=self.gain, ppm=self.ppm, samp_rate=self.samp_rate, shiftoff=self.shiftoff)
+
+    def start_sniffing():
+        self.tb.start()
+
+        # Launch gr-gsm in another thread to avoid putting the main process in "wait state"
+        self.grgsm = Thread(target=tb.wait)
+        self.grgsm.daemon = True # Stop the thread if the main process is stopped
+        self.grgsm.start()
+
+        # For all frequencies in argument sniffing for 2 seconds
+        while True:
+            for fc in args.frequencies:
+            #print("Scanning frequency : " + str(fc))
+            self.tb.set_fc(fc)
+            time.sleep(2)
+
+    # Stop sniffing process
+    def stop_sniffing():
+        self.grgsm.stop()
+        self.tb.stop()
+
 # Main function
 if __name__ == '__main__':
 
-    # Logging system
+    # Log system
     logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', filename='sniffing.log', filemod='w', level=logging.INFO)
 
     # Loading arguments parser
     parser = setup_parameters()
+
     # Getting all arguments in variable "args"
     args = parser.parse_args()
 
-    # checking arguments values
+    # Checking arguments values
     checking_arguments(args.frequencies, args.gain, args.ppm)
 
-    # Creating the top_block implementation to set gr-gsm parameters
-    tb = airprobe_rtlsdr(fc=args.frequencies[0], gain=args.gain, ppm=args.ppm, samp_rate=args.samp_rate, shiftoff=args.shiftoff)
-    tb.start()
+    # Creating class to handle gr-gsm process
+    handler = sniffingHandler(args.frequencies, args.gain, args.ppm, args.samp_rate, args.shiftoff)
 
-    # Launch gr-gsm in another thread to avoid putting the main process in "wait state"
-    grgsm = Thread(target=tb.wait)
-    grgsm.daemon = True # Stop the thread if the main process is stopped
-    grgsm.start()
-
-    # For all frequencies in argument sniffing for 2 seconds
-    while True:
-        for fc in args.frequencies:
-            print("Scanning frequency : " + str(fc))
-            tb.set_fc(fc)
-            time.sleep(2)
-
-    # Stop all process before main stop
-    grgsm.stop()
-    tb.stop()
-
+    # Lanching sniffing until user stop it
+    handler.start();
+    raw.input('Press Enter to exit: ')
+    handler.stop()
+    
