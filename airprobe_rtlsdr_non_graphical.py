@@ -190,9 +190,10 @@ class sniffingHandler:
         self.grgsm.daemon = True # Stop the thread if the main process is stopped
         self.grgsm.start()
 
-        # For all frequencies in argument sniffing for 2 seconds
+    # For all frequencies in argument sniffing for 2 seconds
+    def run_sniffing(self):
         while True:
-            for fc in args.frequencies:
+            for fc in frequencies:
                 #print("Scanning frequency : " + str(fc))
                 self.tb.set_fc(fc)
                 time.sleep(2)
@@ -222,6 +223,10 @@ if __name__ == '__main__':
 
     # Lanching sniffing until user stop it
     handler.start_sniffing()
-    raw.input('Press Enter to exit: ')
+
+    # Running function
+    handler.run_sniffing()
+
+    # Stopping sniffing threads
     handler.stop_sniffing()
 
