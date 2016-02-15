@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 ##################################################
 # GNU Radio Python Flow Graph
 # Title: Airprobe Rtlsdr
@@ -193,9 +193,9 @@ class sniffingHandler:
         # For all frequencies in argument sniffing for 2 seconds
         while True:
             for fc in args.frequencies:
-            #print("Scanning frequency : " + str(fc))
-            self.tb.set_fc(fc)
-            time.sleep(2)
+                #print("Scanning frequency : " + str(fc))
+                self.tb.set_fc(fc)
+                time.sleep(2)
 
     # Stop sniffing process
     def stop_sniffing():
@@ -221,7 +221,7 @@ if __name__ == '__main__':
     handler = sniffingHandler(args.frequencies, args.gain, args.ppm, args.samp_rate, args.shiftoff)
 
     # Lanching sniffing until user stop it
-    handler.start();
+    handler.start()
     raw.input('Press Enter to exit: ')
     handler.stop()
-    
+
