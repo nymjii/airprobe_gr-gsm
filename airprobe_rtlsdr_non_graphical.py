@@ -100,7 +100,7 @@ class airprobe_rtlsdr(gr.top_block):
 
     # Set the sample rate value
     def set_samp_rate(self, samp_rate):
-        #logging.info('Changing the sample rate from %s to  %s', self.samp_rate, samp_rate)
+        logging.info('Changing the sample rate from %s to  %s', self.samp_rate, samp_rate)
         self.samp_rate = samp_rate
         self.blocks_rotator_cc_0.set_phase_inc(-2*pi*self.shiftoff/self.samp_rate)
         self.gsm_input_0.set_samp_rate_in(self.samp_rate)
@@ -112,7 +112,7 @@ class airprobe_rtlsdr(gr.top_block):
 
     # Set the shiftoff value
     def set_shiftoff(self, shiftoff):
-        #logging.info('Changing the shiftoff from %s to  %s', self.shiftoff, shiftoff)
+        logging.info('Changing the shiftoff from %s to  %s', self.shiftoff, shiftoff)
         self.shiftoff = shiftoff
         self.blocks_rotator_cc_0.set_phase_inc(-2*pi*self.shiftoff/self.samp_rate)
         self.rtlsdr_source_0.set_center_freq(self.fc-self.shiftoff, 0)
@@ -124,7 +124,7 @@ class airprobe_rtlsdr(gr.top_block):
 
     # Set the PPM value
     def set_ppm(self, ppm):
-        #logging.info('Changing the PPM from %s to  %s', self.ppm, ppm)
+        logging.info('Changing the PPM from %s to  %s', self.ppm, ppm)
         self.ppm = ppm
         self.rtlsdr_source_0.set_freq_corr(self.ppm, 0)
 
@@ -134,7 +134,7 @@ class airprobe_rtlsdr(gr.top_block):
 
     # Set the gain value
     def set_gain(self, gain):
-        #logging.info('Changing gain from %s to  %s', self.gain, gain)
+        logging.info('Changing gain from %s to  %s', self.gain, gain)
         self.gain = gain
         self.rtlsdr_source_0.set_gain(self.gain, 0)
 
@@ -144,7 +144,7 @@ class airprobe_rtlsdr(gr.top_block):
 
     # Set the frequency to listen
     def set_fc(self, fc):
-        #logging.info('Changing frequency from %s to %s', self.fc, fc)
+        logging.info('Changing frequency from %s to %s', self.fc, fc)
         self.fc = fc
         self.rtlsdr_source_0.set_center_freq(self.fc-self.shiftoff, 0)
 
@@ -153,10 +153,12 @@ def setup_parameters():
     parser = argparse.ArgumentParser(description='Configure sniffing parameters')
     group = parser.add_argument_group("grgsm arguments")
     group.add_argument("-g", "--gain", help="Set the amplification value", default=30, type=float)
-    group.add_argument("-p", "--ppm", help="Set PPM Stream Modulation value", default=0 , type=int)
+    group.add_argument("-p", "--ppm", help="Set PPM Stream Modulation value", default=0, type=int)
     group.add_argument("-s", "--samp_rate", help="Set the rate value of the antenna", default=2000000.052982, type=float)
     group.add_argument("-o", "--shiftoff", help="Set the shiftoff value", default=400000, type=float)
     group.add_argument("-f", "--frequencies", help="Set the list of frequencies to scan : 937000000 932950000 ...", default=[937700000], type=float, nargs='+')
+    group.add_argument("-t", "--scan_time", help="Set the scan time for each frequency", default=2, type=float)
+    group.add_argument("-n", "--repeat", help="Set the number of repeat of the scanning cycle", default=5, type=int)
     return parser
 
 # Checking arguments values
@@ -189,24 +191,23 @@ class sniffingHandler:
         self.grgsm.daemon = True # Stop the thread if the main process is stopped
         self.grgsm.start()
 
-    # For all frequencies in argument sniffing for 2 seconds
-    def run_sniffing(self):
-        while True:
-            for fc in frequencies:
+    # Loop to sniff on each specified frequencies
+    def run_sniffing(self, repeat, scan_time):
+        for i in range(1, repeat, scan_time):
+            for fc in self.frequencies:
                 #print("Scanning frequency : " + str(fc))
                 self.tb.set_fc(fc)
-                time.sleep(2)
+                time.sleep(scan_time)
 
     # Stop sniffing process
     def stop_sniffing(self):
-        self.grgsm.stop()
         self.tb.stop()
 
 # Main function
 if __name__ == '__main__':
 
     # Log system
-    #logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', filename='sniffing.log', filemod='w', level=logging.INFO)
+    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', filename='sniffing.log', filemod='w', level=logging.INFO)
 
     # Loading arguments parser
     parser = setup_parameters()
@@ -224,7 +225,7 @@ if __name__ == '__main__':
     handler.start_sniffing()
 
     # Running function
-    handler.run_sniffing()
+    handler.run_sniffing(args.repeat, args.scan_time)
 
     # Stopping sniffing threads
     handler.stop_sniffing()
