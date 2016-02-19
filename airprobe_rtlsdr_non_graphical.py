@@ -100,7 +100,7 @@ class airprobe_rtlsdr(gr.top_block):
 
     # Set the sample rate value
     def set_samp_rate(self, samp_rate):
-        logging.info('Changing the sample rate from %s to  %s', self.samp_rate, samp_rate)
+        #logging.info('Changing the sample rate from %s to  %s', self.samp_rate, samp_rate)
         self.samp_rate = samp_rate
         self.blocks_rotator_cc_0.set_phase_inc(-2*pi*self.shiftoff/self.samp_rate)
         self.gsm_input_0.set_samp_rate_in(self.samp_rate)
@@ -124,7 +124,7 @@ class airprobe_rtlsdr(gr.top_block):
 
     # Set the PPM value
     def set_ppm(self, ppm):
-        logging.info('Changing the PPM from %s to  %s', self.ppm, ppm)
+        #logging.info('Changing the PPM from %s to  %s', self.ppm, ppm)
         self.ppm = ppm
         self.rtlsdr_source_0.set_freq_corr(self.ppm, 0)
 
@@ -134,7 +134,7 @@ class airprobe_rtlsdr(gr.top_block):
 
     # Set the gain value
     def set_gain(self, gain):
-        logging.info('Changing gain from %s to  %s', self.gain, gain)
+        #logging.info('Changing gain from %s to  %s', self.gain, gain)
         self.gain = gain
         self.rtlsdr_source_0.set_gain(self.gain, 0)
 
@@ -144,7 +144,7 @@ class airprobe_rtlsdr(gr.top_block):
 
     # Set the frequency to listen
     def set_fc(self, fc):
-        logging.info('Changing frequency from %s to %s', self.fc, fc)
+        #logging.info('Changing frequency from %s to %s', self.fc, fc)
         self.fc = fc
         self.rtlsdr_source_0.set_center_freq(self.fc-self.shiftoff, 0)
 
@@ -193,7 +193,7 @@ class sniffingHandler:
 
     # Loop to sniff on each specified frequencies
     def run_sniffing(self, repeat, scan_time):
-        for i in range(1, repeat, scan_time):
+        for i in range(1, repeat):
             for fc in self.frequencies:
                 #print("Scanning frequency : " + str(fc))
                 self.tb.set_fc(fc)
@@ -207,7 +207,7 @@ class sniffingHandler:
 if __name__ == '__main__':
 
     # Log system
-    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', filename='sniffing.log', filemod='w', level=logging.INFO)
+    #logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', filename='sniffing.log', filemod='w', level=logging.INFO)
 
     # Loading arguments parser
     parser = setup_parameters()
